@@ -1,0 +1,3 @@
+this project needs lsfm library;
+to compile, include libraries like this:
+    g++ gui.cpp -o build/gui -lsfml-graphics -lsfml-window -lsfml-system
