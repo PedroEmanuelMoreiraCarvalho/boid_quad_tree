@@ -4,3 +4,4 @@ build/*
 *.exe
 *.out
 *.obj
+arial.ttf

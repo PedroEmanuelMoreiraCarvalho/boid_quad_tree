@@ -6,8 +6,8 @@ using namespace std;
 class QuadTree {
     private:
     int x, y, width, height;
-    int points_count = 0;
-    const int capacity = 4;
+    int boids_count = 0;
+    const int CAPACITY = 4;
     const int LEVEL_LIMIT = 4;
     int level;
     bool divided;
@@ -30,14 +30,22 @@ class QuadTree {
         boids_references = vector<int>();
     }
 
+    void popBoid(int mouseX, int mouseY) {
+        if (divided) {
+            int indexX = (mouseX >= x + width / 2) ? 1 : 0;
+            int indexY = (mouseY >= y + height / 2) ? 1 : 0;
+
+            if (children[indexY][indexX]) {
+                children[indexY][indexX]->popBoid(mouseX, mouseY);
+            }
+        } else {
+            boids_references.pop_back();
+        }
+    }
+
     void addPoint(int boid_reference) {
         if(!divided){
             this->boids_references.push_back(boid_reference);
-            points_count++;
-            if(points_count > capacity and level < LEVEL_LIMIT){
-                this->subdivide();
-                this->realocatePoints();
-            }
         }else{
             this->alocatePoint(boid_reference);
         }
@@ -73,10 +81,61 @@ class QuadTree {
     void realocatePoints() {
         vector<int> tempPoints = boids_references;
         boids_references.clear();
-        points_count = 0;
+        boids_count = 0;
 
         for (int ref : tempPoints) {
             this->alocatePoint(ref);
+        }
+    }
+
+    void analyseDivide(void) {
+        if (divided) {
+            for (int i = 0; i < 2; ++i) {
+                for (int j = 0; j < 2; ++j) {
+                    if (children[i][j]) {
+                        children[i][j]->analyseDivide();
+                    }
+                }
+            }
+        } else {
+            if(boids_references.size() > CAPACITY){
+                this->subdivide();
+                this->realocatePoints();
+            }
+        }
+    }
+
+    void analyseUndivide() {
+        if (divided) {
+            int totalBoids = 0;
+            bool canUndivide = true;
+            for (int i = 0; i < 2; ++i) {
+                for (int j = 0; j < 2; ++j) {
+                    if (children[i][j]) {
+                        children[i][j]->analyseUndivide();
+                        if (!children[i][j]->divided){
+                            totalBoids += children[i][j]->boids_references.size();
+                        }else{
+                            canUndivide = false;
+                        }
+                    }
+                }
+            }
+
+            if(totalBoids <= CAPACITY and canUndivide){
+                for (int i = 0; i < 2; ++i) {
+                    for (int j = 0; j < 2; ++j) {
+                        if (children[i][j]) {
+                            for (int ref : children[i][j]->boids_references) {
+                                this->boids_references.push_back(ref);
+                            }
+                            delete children[i][j];
+                            children[i][j] = nullptr;
+                        }
+                    }
+                }
+                divided = false;
+            }
         }
     }
 
@@ -103,6 +162,21 @@ class QuadTree {
         rectangle.setOutlineColor(sf::Color::White);
         rectangle.setOutlineThickness(1.0f);
         window.draw(rectangle);
+
+        sf::Font font;
+        if (!font.loadFromFile("arial.ttf")) {
+            cout << "Failed to load font!" << endl;
+            return;
+        }
+        sf::Text text;
+        text.setFont(font);
+        if(!divided){
+            text.setString(to_string(boids_references.size()));
+            text.setCharacterSize(20);
+            text.setFillColor(sf::Color::White);
+            text.setPosition(static_cast<float>(x + width / 2), static_cast<float>(y + height / 2));
+            window.draw(text);
+        }
 
         if (divided) {
             for (int i = 0; i < 2; ++i) {

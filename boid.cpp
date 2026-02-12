@@ -27,8 +27,9 @@ class Boid {
     }
 
     void update(float deltaTime) {
-        x += velocityX * deltaTime;
-        y += velocityY * deltaTime;
+        // x += velocityX * deltaTime;
+        // y += velocityY * deltaTime;
+        return;
     }
 
     void render(sf::RenderWindow& window) {
