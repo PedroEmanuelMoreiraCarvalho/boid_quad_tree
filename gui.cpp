@@ -11,6 +11,7 @@ int main(){
     vector<Boid> boids;
     QuadTree quadTree(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, &boids); //root
     bool shift = false;
+    bool pause = false;
 
     while (window.isOpen()){
         sf::Event event;
@@ -26,10 +27,10 @@ int main(){
                     int mouseY = event.mouseButton.y;
 
                     if(shift){
-                        quadTree.popBoid(mouseX, mouseY);
+                        quadTree.selectQuadrant(mouseX, mouseY);
                     }else{
                         boids.emplace_back(static_cast<double>(mouseX), static_cast<double>(mouseY));
-                        quadTree.addPoint(boids.size() - 1); //add last point reference to the quadtree
+                        quadTree.addBoid(boids.size() - 1); //add last boid reference to the quadtree
                     }
                 }
                 else if (event.mouseButton.button == sf::Mouse::Right){
@@ -48,13 +49,19 @@ int main(){
             if( event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::LShift){
                 shift = false;
             }
+            if( event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space){
+                pause = !pause;
+            }
         }
 
         window.clear(sf::Color::Black);
 
         quadTree.analyseUndivide();
         quadTree.analyseDivide();
-        quadTree.update(deltaTime.asSeconds()); //update with deltaTime
+        quadTree.checkBoidsPosition();
+        if (!pause) {
+            quadTree.update(deltaTime.asSeconds()); //update with deltaTime
+        }
         quadTree.render(window);
 
         window.display();
