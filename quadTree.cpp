@@ -7,8 +7,8 @@ class QuadTree {
     private:
     int x, y, width, height;
     int boids_count = 0;
-    const int CAPACITY = 4;
-    const int LEVEL_LIMIT = 4;
+    int CAPACITY = 15;
+    int LEVEL_LIMIT = 0;
     int level;
     bool divided;
     bool selected;
@@ -21,8 +21,8 @@ class QuadTree {
 
     public:
 
-    QuadTree(int _x, int _y, int _width, int _height, int _level, vector<Boid>* _boids = nullptr,QuadTree* _parent = nullptr)
-        : x(_x), y(_y), width(_width), height(_height), level(_level), divided(false), parent(_parent), boids(_boids) {
+    QuadTree(int _x, int _y, int _width, int _height, int _level, int _LEVEL_LIMIT, int _CAPACITY, vector<Boid>* _boids = nullptr,QuadTree* _parent = nullptr)
+        : x(_x), y(_y), width(_width), height(_height), level(_level), LEVEL_LIMIT(_LEVEL_LIMIT), CAPACITY(_CAPACITY), divided(false), parent(_parent), boids(_boids) {
         children[0][0] = children[0][1] = children[1][0] = children[1][1] = nullptr;
         if (parent){
             this->level = parent->level + 1;
@@ -77,10 +77,10 @@ class QuadTree {
         int halfWidth = width / 2;
         int halfHeight = height / 2;
 
-        children[0][0] = new QuadTree(x, y, halfWidth, halfHeight, level + 1, boids, this);
-        children[0][1] = new QuadTree(x + halfWidth, y, halfWidth, halfHeight, level + 1, boids, this);
-        children[1][0] = new QuadTree(x, y + halfHeight, halfWidth, halfHeight, level + 1, boids, this);
-        children[1][1] = new QuadTree(x + halfWidth, y + halfHeight, halfWidth, halfHeight, level + 1, boids, this);
+        children[0][0] = new QuadTree(x, y, halfWidth, halfHeight, level + 1, LEVEL_LIMIT, CAPACITY, boids, this);
+        children[0][1] = new QuadTree(x + halfWidth, y, halfWidth, halfHeight, level + 1, LEVEL_LIMIT, CAPACITY, boids, this);
+        children[1][0] = new QuadTree(x, y + halfHeight, halfWidth, halfHeight, level + 1, LEVEL_LIMIT, CAPACITY, boids, this);
+        children[1][1] = new QuadTree(x + halfWidth, y + halfHeight, halfWidth, halfHeight, level + 1, LEVEL_LIMIT, CAPACITY, boids, this);
 
         for(int i = 0; i < 2; ++i){
             for(int j = 0; j < 2; ++j){
@@ -107,26 +107,14 @@ class QuadTree {
     void checkVisibility(QuadTree* qt) {
         if (qt == this) return;
 
-        int qt_points[4][2] = {
-            {qt->x, qt->y},
-            {qt->x + qt->width, qt->y},
-            {qt->x, qt->y + qt->height},
-            {qt->x + qt->width, qt->y + qt->height}
-        }, this_points[4][2] = {
-            {x, y},
-            {x + width, y},
-            {x, y + height},
-            {x + width, y + height}
-        };
+        int center[2] = {x + width / 2, y + height / 2};
+        int qt_center[2] = {qt->x + qt->width / 2, qt->y + qt->height / 2};
 
-        for(int i = 0; i < 4; ++i){
-            for(int j = 0; j < 4; ++j){
-                double dist = sqrt(pow(qt_points[i][0] - this_points[j][0], 2) + pow(qt_points[i][1] - this_points[j][1], 2));
-                if(dist <= Boid::vision_range){
-                    this->addVisibility(qt);
-                    return;
-                }
-            }
+        double max_distance_possible = sqrt(pow(width / 2 + qt->width / 2, 2) + pow(height / 2 + qt->height / 2, 2)) + Boid::vision_range;
+        double actual_distance = sqrt(pow(center[0] - qt_center[0], 2) + pow(center[1] - qt_center[1], 2));
+
+        if(actual_distance < max_distance_possible){
+            this->addVisibility(qt);
         }
 
     }
@@ -237,7 +225,7 @@ class QuadTree {
                 double px = b.getX();
                 double py = b.getY();
 
-                if (px < x || px >= x + width || py < y || py >= y + height) {
+                if ((px < x || px >= x + width || py < y || py >= y + height) and (px >= 0 && px < Boid::SCREEN_WIDTH && py >= 0 && py < Boid::SCREEN_HEIGHT)) {
                     boids_references.erase(boids_references.begin() + i);
                     if (parent) {
                         parent->reAddBoid(ref);
@@ -256,6 +244,146 @@ class QuadTree {
         }
     }
 
+    void allign(vector<int>& visible_boids_references){
+        if(divided){
+            for (int i = 0; i < 2; ++i) {
+                for (int j = 0; j < 2; ++j) {
+                    if (children[i][j]) {
+                        children[i][j]->allign(visible_boids_references);
+                    }
+                }
+            }
+        }else{
+            for(int ref : boids_references){
+                Boid* boid = &this->boids->at(ref);
+                double boidX = boid->getX();
+                double boidY = boid->getY();
+            
+                double alignmentX = 0.0;
+                double alignmentY = 0.0;
+                int count = 0;
+
+                for(int visible_ref : visible_boids_references){
+                    if(visible_ref == ref) continue;
+                    Boid& visible_boid = this->boids->at(visible_ref);
+                    double distance = sqrt(pow(visible_boid.getX() - boidX, 2) + pow(visible_boid.getY() - boidY, 2));
+                    if(distance < Boid::vision_range){
+                        alignmentX += visible_boid.getVelocityX();
+                        alignmentY += visible_boid.getVelocityY();
+                        count++;
+                    }
+                }
+
+                if(count > 0){
+                    alignmentX /= count;
+                    alignmentY /= count;
+                }
+
+                boid->setAlignment(alignmentX, alignmentY);
+            }
+        }
+    }
+
+    void cohesion(vector<int>& visible_boids_references){
+        if(divided){
+            for (int i = 0; i < 2; ++i) {
+                for (int j = 0; j < 2; ++j) {
+                    if (children[i][j]) {
+                        children[i][j]->cohesion(visible_boids_references);
+                    }
+                }
+            }
+        }else{
+            for(int ref : boids_references){
+                Boid* boid = &this->boids->at(ref);
+                double boidX = boid->getX();
+                double boidY = boid->getY();
+            
+                double cohesionX = 0.0;
+                double cohesionY = 0.0;
+                int count = 0;
+
+                for(int visible_ref : visible_boids_references){
+                    if(visible_ref == ref) continue;
+                    Boid& visible_boid = this->boids->at(visible_ref);
+                    double distance = sqrt(pow(visible_boid.getX() - boidX, 2) + pow(visible_boid.getY() - boidY, 2));
+                    if(distance < Boid::vision_range){
+                        cohesionX += visible_boid.getX();
+                        cohesionY += visible_boid.getY();
+                        count++;
+                    }
+                }
+
+                if(count > 0){
+                    cohesionX /= count;
+                    cohesionY /= count;
+                    cohesionX -= boidX;
+                    cohesionY -= boidY;
+                }
+
+                boid->setCohesion(cohesionX, cohesionY);
+            }
+        }
+    }
+
+    void avoid(vector<int>& visible_boids_references){
+        if(divided){
+            for (int i = 0; i < 2; ++i) {
+                for (int j = 0; j < 2; ++j) {
+                    if (children[i][j]) {
+                        children[i][j]->avoid(visible_boids_references);
+                    }
+                }
+            }
+        }else{
+
+            for(int ref : boids_references){
+                Boid* boid = &this->boids->at(ref);
+                double boidX = boid->getX();
+                double boidY = boid->getY();
+            
+                double separationX = 0.0;
+                double separationY = 0.0;
+
+                for(int visible_ref : visible_boids_references){
+                    if(visible_ref == ref) continue;
+                    Boid& visible_boid = this->boids->at(visible_ref);
+                    double distance = sqrt(pow(visible_boid.getX() - boidX, 2) + pow(visible_boid.getY() - boidY, 2));
+                    if(distance < Boid::avoid_range and distance > 0){
+                        separationX += (boidX - visible_boid.getX()) / distance;
+                        separationY += (boidY - visible_boid.getY()) / distance;
+                    }
+                }
+
+                boid->setSeparation(separationX, separationY);
+            }
+        }
+    }
+
+    void boid(){
+        if (divided) {
+            for (int i = 0; i < 2; ++i) {
+                for (int j = 0; j < 2; ++j) {
+                    if (children[i][j]) {
+                        children[i][j]->boid();
+                    }
+                }
+            }
+        } else {
+            vector<int> visible_boids_references;
+            
+            for(QuadTree* visible : visibles){
+                for(int ref : visible->boids_references){
+                    visible_boids_references.push_back(ref);
+                }
+            }
+            
+            this->allign(visible_boids_references);
+            this->cohesion(visible_boids_references);
+            this->avoid(visible_boids_references);
+        }
+    }
+
     void update(float deltaTime) {
         if (divided) {
             for (int i = 0; i < 2; ++i) {
@@ -269,40 +397,38 @@ class QuadTree {
             for (int ref : boids_references) {
                 Boid* boid = &this->boids->at(ref);
                 boid->update(deltaTime);
-                if(boid->getY() + boid->getVelocityY() * deltaTime < 0 || boid->getY() + boid->getVelocityY() * deltaTime > 600) boid->setVelocityY(boid->getVelocityY() * -1);
-                if(boid->getX() + boid->getVelocityX() * deltaTime < 0 || boid->getX() + boid->getVelocityX() * deltaTime > 800) boid->setVelocityX(boid->getVelocityX() * -1);
             }
         }
     }
 
-    void render(sf::RenderWindow& window) {
+    void render(sf::RenderWindow& window, int cameraX = 0, int cameraY = 0, double zoom = 1.0) {
         sf::RectangleShape rectangle(sf::Vector2f(static_cast<float>(width), static_cast<float>(height)));
-        rectangle.setPosition(static_cast<float>(x), static_cast<float>(y));
+        rectangle.setPosition(static_cast<float>(x - cameraX), static_cast<float>(y - cameraY));
         selected ? rectangle.setFillColor(sf::Color::Blue) : rectangle.setFillColor(sf::Color::Transparent) ;
         rectangle.setOutlineColor(sf::Color::White);
         rectangle.setOutlineThickness(1.0f);
         window.draw(rectangle);
 
-        sf::Font font;
-        if (!font.loadFromFile("arial.ttf")) {
-            cout << "Failed to load font!" << endl;
-            return;
-        }
-        sf::Text text;
-        text.setFont(font);
-        if(!divided){
-            text.setString(to_string(boids_references.size()));
-            text.setCharacterSize(20);
-            text.setFillColor(sf::Color::White);
-            text.setPosition(static_cast<float>(x + width / 2), static_cast<float>(y + height / 2));
-            window.draw(text);
-        }
+        // sf::Font font;
+        // if (!font.loadFromFile("arial.ttf")) {
+        //     cout << "Failed to load font!" << endl;
+        //     return;
+        // }
+        // sf::Text text;
+        // text.setFont(font);
+        // if(!divided){
+        //     text.setString(to_string(boids_references.size()));
+        //     text.setCharacterSize(20);
+        //     text.setFillColor(sf::Color::White);
+        //     text.setPosition(static_cast<float>(x + width / 2), static_cast<float>(y + height / 2));
+        //     window.draw(text);
+        // }
 
         if(selected and !divided){
             for(QuadTree* visible : visibles){
                 if(visible == this) continue;
                 sf::RectangleShape visible_rectangle(sf::Vector2f(static_cast<float>(visible->width), static_cast<float>(visible->height)));
-                visible_rectangle.setPosition(static_cast<float>(visible->x), static_cast<float>(visible->y));
+                visible_rectangle.setPosition(static_cast<float>(visible->x - cameraX), static_cast<float>(visible->y - cameraY));
                 visible_rectangle.setFillColor(sf::Color(0, 100, 150, 100));
                 window.draw(visible_rectangle);
             }
@@ -312,13 +438,13 @@ class QuadTree {
             for (int i = 0; i < 2; ++i) {
                 for (int j = 0; j < 2; ++j) {
                     if (children[i][j]) {
-                        children[i][j]->render(window);
+                        children[i][j]->render(window, cameraX, cameraY, zoom);
                     }
                 }
             }
         } else {
             for (int ref : boids_references) {
-                this->boids->at(ref).render(window);
+                this->boids->at(ref).render(window, cameraX, cameraY, zoom);
             }
         }
     }
