@@ -13,17 +13,19 @@ int main(int argc, char* args[]){
     int cameraX = 0, cameraY = 0;
     double zoom = 1.0;
 
-    sf::RenderWindow window(sf::VideoMode(Boid::SCREEN_WIDTH, Boid::SCREEN_HEIGHT), "Boids");
+    int SCREEN_WIDTH = 800, SCREEN_HEIGHT = 600;
+
+    sf::RenderWindow window(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), "Boids");
     window.setFramerateLimit(60);
     sf::Clock clock;
     vector<Boid> boids;
-    QuadTree quadTree(0, 0, Boid::SCREEN_WIDTH, Boid::SCREEN_HEIGHT, 0, LEVEL_LIMIT, CAPACITY, &boids); //root
+    QuadTree quadTree(0, 0, Boid::FIELD_WIDTH, Boid::FIELD_HEIGHT, 0, LEVEL_LIMIT, CAPACITY, &boids); //root
     bool shift = false;
     bool pause = false;
 
     for(int i = 0; i < BOIDS_COUNT; ++i){
-        double x = rand() % Boid::SCREEN_WIDTH;
-        double y = rand() % Boid::SCREEN_HEIGHT;
+        double x = rand() % Boid::FIELD_WIDTH;
+        double y = rand() % Boid::FIELD_HEIGHT;
         boids.emplace_back(x, y);
         quadTree.addBoid(boids.size() - 1); //add last boid reference to the quadtree
         quadTree.analyseUndivide();

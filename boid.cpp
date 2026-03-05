@@ -18,15 +18,15 @@ class Boid {
     double next_velocityY;
     
     public:
-    const static constexpr int SCREEN_WIDTH = 800, SCREEN_HEIGHT = 600;
-    const static constexpr int LEFT_MARGIN = 100, RIGHT_MARGIN = SCREEN_WIDTH - 100, TOP_MARGIN = 100, BOTTOM_MARGIN = SCREEN_HEIGHT - 100;
+    const static constexpr int FIELD_WIDTH = 1800, FIELD_HEIGHT = 1600;
+    const static constexpr int LEFT_MARGIN = FIELD_WIDTH / 10, RIGHT_MARGIN = FIELD_WIDTH - FIELD_WIDTH / 10, TOP_MARGIN = FIELD_HEIGHT / 10, BOTTOM_MARGIN = FIELD_HEIGHT - FIELD_HEIGHT / 10;
     const static constexpr double vision_range = 30.0;
     const static constexpr double avoid_range = 30.0;
     const static constexpr double avg_speed = 100.0;
     const static constexpr double separation_weight = 2.0;
     const static constexpr double alignment_weight = 0.7;
     const static constexpr double cohesion_weight = 0.56;
-    const static constexpr double turn_factor = 2.5;
+    const static constexpr double turn_factor = 5.0;
     Boid(double _x = 0.0, double _y = 0.0) : x(_x), y(_y), velocityX(rand() % (int)avg_speed - avg_speed/2.0), velocityY(rand() % (int)avg_speed - avg_speed/2.0), next_velocityX(0.0), next_velocityY(0.0) {}
 
     double getX() const {return x;}
@@ -85,7 +85,7 @@ class Boid {
         shape.setPoint(1, sf::Vector2f(-5.0f, 5.0f));
         shape.setPoint(2, sf::Vector2f(-5.0f, -5.0f));
         shape.setPoint(3, sf::Vector2f(10.0f, 0.0f));
-        shape.setPosition((float)(x - cameraX), (float)(y - cameraY));
+        shape.setPosition((float)(x - cameraX) * zoom, (float)(y - cameraY) * zoom);
         shape.rotate(atan2(velocityY, velocityX) * 180.0f / 3.14159265f);
         shape.scale((float)zoom, (float)zoom);
         window.draw(shape);

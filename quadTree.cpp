@@ -225,7 +225,7 @@ class QuadTree {
                 double px = b.getX();
                 double py = b.getY();
 
-                if ((px < x || px >= x + width || py < y || py >= y + height) and (px >= 0 && px < Boid::SCREEN_WIDTH && py >= 0 && py < Boid::SCREEN_HEIGHT)) {
+                if ((px < x || px >= x + width || py < y || py >= y + height) and (px >= 0 && px < Boid::FIELD_WIDTH && py >= 0 && py < Boid::FIELD_HEIGHT)) {
                     boids_references.erase(boids_references.begin() + i);
                     if (parent) {
                         parent->reAddBoid(ref);
@@ -402,8 +402,8 @@ class QuadTree {
     }
 
     void render(sf::RenderWindow& window, int cameraX = 0, int cameraY = 0, double zoom = 1.0) {
-        sf::RectangleShape rectangle(sf::Vector2f(static_cast<float>(width), static_cast<float>(height)));
-        rectangle.setPosition(static_cast<float>(x - cameraX), static_cast<float>(y - cameraY));
+        sf::RectangleShape rectangle(sf::Vector2f(static_cast<float>(width) * zoom, static_cast<float>(height) * zoom));
+        rectangle.setPosition(static_cast<float>(x - cameraX) * zoom, static_cast<float>(y - cameraY) * zoom);
         selected ? rectangle.setFillColor(sf::Color::Blue) : rectangle.setFillColor(sf::Color::Transparent) ;
         rectangle.setOutlineColor(sf::Color::White);
         rectangle.setOutlineThickness(1.0f);
@@ -427,8 +427,8 @@ class QuadTree {
         if(selected and !divided){
             for(QuadTree* visible : visibles){
                 if(visible == this) continue;
-                sf::RectangleShape visible_rectangle(sf::Vector2f(static_cast<float>(visible->width), static_cast<float>(visible->height)));
-                visible_rectangle.setPosition(static_cast<float>(visible->x - cameraX), static_cast<float>(visible->y - cameraY));
+                sf::RectangleShape visible_rectangle(sf::Vector2f(static_cast<float>(visible->width * zoom), static_cast<float>(visible->height * zoom)));
+                visible_rectangle.setPosition(static_cast<float>(visible->x - cameraX) * zoom, static_cast<float>(visible->y - cameraY) * zoom);
                 visible_rectangle.setFillColor(sf::Color(0, 100, 150, 100));
                 window.draw(visible_rectangle);
             }
